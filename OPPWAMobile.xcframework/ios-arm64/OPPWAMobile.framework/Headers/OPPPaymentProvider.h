@@ -16,8 +16,6 @@
 @class OPPCheckoutInfo;
 @class OPPThreeDSConfig;
 @class OPPBinInfo;
-@class Warning;
-@class OPPCheckoutData;
 
 /// An enumeration for the various provider modes.
 typedef NS_ENUM(NSInteger, OPPProviderMode) {
@@ -27,10 +25,18 @@ typedef NS_ENUM(NSInteger, OPPProviderMode) {
     OPPProviderModeLive
 };
 
+/// An enumeration for server endpoint domain.
+typedef NS_ENUM(NSInteger, OPPProviderDomain) {
+    /// oppwa.com for Live server mode, test.oppwa.com for Sandbox mode.
+    OPPProviderDomainDefault,
+    /// eu-prod.oppwa.com for Live server mode, eu-test.oppwa.com for Sandbox mode.
+    OPPProviderDomainEU
+};
+
 NS_ASSUME_NONNULL_BEGIN
 
 /**
- A protocol to handle 3D Secure workflow.
+ A protocol to handle 3-D Secure workflow.
  */
 @protocol OPPThreeDSEventListener <NSObject>
 @optional
@@ -38,14 +44,14 @@ NS_ASSUME_NONNULL_BEGIN
 /**
  Called before initialization of `OPPThreeDSService`.
  Use this callback to provide `OPPThreeDSConfig` configurations applied during `OPPThreeDSService` initialization phase.
- @param completion The completion block you should call to continue 3D Secure transaction.
+ @param completion The completion block you should call to continue 3-D Secure transaction.
  */
 - (void)onThreeDSConfigRequiredWithCompletion:(void (^)(OPPThreeDSConfig *config))completion;
 
 /**
- Called before starting the authentication process of 3D Secure transaction.
- Use this callback to provide UINavigationController, which will be used for 3D Secure challenge process.
- @param completion The completion block you should call to continue 3D Secure transaction.
+ Called before starting the authentication process of 3-D Secure transaction.
+ Use this callback to provide UINavigationController, which will be used for 3-D Secure challenge process.
+ @param completion The completion block you should call to continue 3-D Secure transaction.
  */
 - (void)onThreeDSChallengeRequiredWithCompletion:(void (^)(UINavigationController *navController))completion;
 
@@ -64,6 +70,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic) OPPProviderMode mode;
 
 /**
+ Determines Server endpoint domain.
+*/
+@property (nonatomic) OPPProviderDomain domain;
+
+/**
  Delegate for processing the 3-D Secure transaction.
  */
 @property (nonatomic, weak, nullable) id<OPPThreeDSEventListener> threeDSEventListener;
@@ -76,6 +87,15 @@ NS_ASSUME_NONNULL_BEGIN
  @return An `OPPPaymentProvider` which can be used to process transactions.
 */
 + (instancetype)paymentProviderWithMode:(OPPProviderMode)mode;
+
+/**
+ Factory method to obtain a new provider.
+ @param mode Determines the type of Server to use. Transactions to the LIVE server come with fees attached.
+ @param domain Determines Server endpoint domain.
+ @return An `OPPPaymentProvider` which can be used to process transactions.
+*/
++ (instancetype)paymentProviderWithMode:(OPPProviderMode)mode andDomain:(OPPProviderDomain)domain;
+
 
 /// @name Process transaction
 
@@ -137,27 +157,6 @@ NS_ASSUME_NONNULL_BEGIN
                    completionHandler:(void (^)(OPPBinInfo * _Nullable binInfo,
                                                NSError * _Nullable error))completionHandler;
 
-/**
- Requests a list of iDeal banks.
- 
- This method is deprecated.
- 
- @param checkoutID The checkout ID of a transaction.
- @param completionHandler The completion block which will be invoked once the response is received. On success, you will receive a list of banks in array, and on failure an error is received.
- */
-- (void)requestIdealBanksWithCheckoutID:(nonnull NSString *)checkoutID
-                      completionHandler:(void (^)(NSArray <NSDictionary *> * _Nullable banks,
-                                                  NSError * _Nullable error))completionHandler __attribute__ ((deprecated));
-
-/// @name 3D Secure
-/**
- The ipworks3ds SDK performs security checks in order to provide a  list of `Warning` objects. These can be checked by the app to determine whether or not to proceed with the checkout process.
- 
- @param completionHandler The completion block will be invoked once the performing of security checks is done . On success, you will receive an instance of `Warning`; on failure, an error.
- */
-- (void)securityWarningsWithCompletionHandler:(void (^)(NSArray<Warning *> * _Nullable warnings,
-                                                        NSError * _Nullable error))completionHandler;
-
 /// @name Apple Pay methods
 /**
  Determine whether this device can process Apple Pay payment requests using specific payment request. Your application should confirm that the user can make payments before attempting to authorize a payment. Your application may also want to alter its appearance or behavior when the user is not allowed to make payments.
@@ -192,23 +191,22 @@ NS_ASSUME_NONNULL_BEGIN
  */
 + (BOOL)isDeviceAuthenticationAvailable;
 
-/**
- Requests a Apple's  recurring payments tokenId.
- 
- @param checkoutID The checkout ID of a transaction.
- @param completionHandler The completion block which will be invoked once the response is received. On success, you will receive a tokenId, and on failure an error is received.
- */
-- (void)requestApplesTokenIdWithCheckoutID:(nonnull NSString *)checkoutID
-                         completionHandler:(void (^)(NSString * _Nullable tokenId,
-                                                     NSError * _Nullable error))completionHandler;
+
+/// @name Deprecated
 
 /**
- Requests a Checkout payment data
+ Requests list of payment brands for provided card bin.
+ Request is performed asynchronously using an NSURLConnection.
  
- @param checkoutID The checkout ID of a transaction.
- @param completionHandler The completion block which will be invoked once the response is received. On success, you will receive an OPPCheckoutData ojbect with payment data, and on failure an error is received.
+ @note If you are using core SDK, please request checkout info by calling `-[OPPPaymentProvider requestCheckoutInfoWithCheckoutID:completionHandler:]` before requestPaymentBrandsForBin call. Checkout info call is essential part of the flow, error will be thrown otherwise.
+ @param bin First 6 or more digits of the card number.
+ @param completionHandler The completion block will be invoked once the response in received.
+ @warning **Deprecated:** Use `-requestBinInfoWithCheckoutID:bin:completionHandler:` instead.
  */
-- (void)requestCheckoutDataWithCheckoutID:(nonnull NSString *)checkoutID
-                        completionHandler:(void (^)(OPPCheckoutData * _Nullable checkoutData, NSError * _Nullable error))completionHandler;
+- (void)requestPaymentBrandsForBin:(NSString *)bin
+                        checkoutID:(NSString *)checkoutID
+                 completionHandler:(void (^)(NSArray <NSString *> * _Nullable paymentBrands,
+                                             NSError * _Nullable error))completionHandler DEPRECATED_MSG_ATTRIBUTE("- Use -requestBinInfoWithCheckoutID:bin:completionHandler: instead.");
+
 @end
 NS_ASSUME_NONNULL_END
