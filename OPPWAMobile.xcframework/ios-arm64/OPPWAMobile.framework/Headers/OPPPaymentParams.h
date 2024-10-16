@@ -10,7 +10,7 @@
 //
 
 #import <Foundation/Foundation.h>
-
+#import "OPPPaymentProvider.h"
 /**
  Class to represent a set of parameters needed for performing an e-commerce transaction.
  */
@@ -67,7 +67,11 @@ NS_ASSUME_NONNULL_BEGIN
  */
 @property (nonatomic, copy, readonly) NSDictionary<NSString *, NSString *> *customParams;
 
+/// :nodoc:
+@property (nonatomic) NSMutableDictionary<NSString *, NSString *> *additionalParams;
+// TODO: - We need to make additionalParams private again
 
+@property (nonatomic) OPPProviderMode mode;
 /// @name Custom parameters methods 
 
 /**
@@ -91,5 +95,6 @@ Method to add parameter that will be sent to the server.
  */
 - (void)mask;
 
+- (nonnull NSDictionary *)dictionaryForExecutingTransaction;
 @end
 NS_ASSUME_NONNULL_END
